@@ -1,4 +1,5 @@
 import codecs
+import numpy as np
 
 
 def read_file(path):
@@ -65,5 +66,16 @@ def trans_sen_to_id_array(word_dict,doc):
         doc_str += ' '+str(num)
     return doc_str.strip()
 
+def accuracy_cal():
+    x1=[[1,0],[0,1],[1,0]]
+    x2 = [[0.8,0.2],[0.3,0.7],[0.2,0.8]]
+    r = (np.argmax(x1,1) == np.argmax(x2,1))
+    right = 0
+    for i in range(len(r)):
+        right += 1 if r[i] == True else 0
+    print float(right)/len(r)
+
+
 if __name__ == '__main__':
-    train_test_trans('data/word_dict.txt','data/train_dssm.txt')
+    #train_test_trans('data/word_dict.txt','data/train_dssm.txt')
+    accuracy_cal()

@@ -51,11 +51,11 @@ def read_relation(filename):
         line = line.strip().split()
         data.append( (int(line[0]), line[1], line[2]) )
     print '[%s]\n\tInstance size: %s' % (filename, len(data))
-    # list of (label, query, doc) tuple
+    # list of (label, query_id, doc_id) tuple
     return data
 
 
-# Read Data Dict
+# Read Data Dict {index:sentence}
 def read_data(filename):
     data = {}
     for line in open(filename):
