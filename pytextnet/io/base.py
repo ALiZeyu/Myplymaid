@@ -10,8 +10,9 @@ def read_word_dict(filename):
     iword_dict = {}
     for line in open(filename):
         line = line.strip().split()
-        word_dict[int(line[1])] = line[0]
-        iword_dict[line[0]] = int(line[1])
+        num = int(line[1])
+        word_dict[num] = line[0]
+        iword_dict[line[0]] = int(num)
     print '[%s]\n\tWord dict size: %d' % (filename, len(word_dict))
     return word_dict, iword_dict
 
@@ -71,7 +72,7 @@ def convert_embed_2_numpy(embed_dict, max_size=0, embed=None):
     if embed is None:
         embed = np.zeros( (feat_size, max_size), dtype = np.float32 )
     #for k in embed_dict:
-    for k in range(10001):
+    for k in range(10002):
         embed[k] = np.array(embed_dict[k])
     print 'Generate numpy embed:', embed.shape
     return embed

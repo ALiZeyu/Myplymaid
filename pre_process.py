@@ -20,7 +20,7 @@ def write_file(path, content):
 def dict_trans():
     dssm_dict = read_file('data/vocaburary_chatlog1.txt')
     result = []
-    index = 0
+    index = 1
     for word in dssm_dict:
         result.append(word +  ' ' +str(index))
         index += 1
@@ -54,7 +54,10 @@ def train_test_trans(dict_file, dssm_file):
             docid.append(str(index) + ' ' + doc2_str)
             index += 1
         relation.append(str(rela)+' '+str(doc_dict[doc1_str])+' '+str(doc_dict[doc2_str]))
-    write_file('data/relation_all.txt', relation)
+    relation_train = relation[:76182]
+    relation_test = relation[76182:]
+    write_file('data/relation_train.txt', relation_train)
+    write_file('data/relation_test.txt', relation_test)
     write_file('data/docid.txt', docid)
 
 
@@ -77,5 +80,6 @@ def accuracy_cal():
 
 
 if __name__ == '__main__':
-    #train_test_trans('data/word_dict.txt','data/train_dssm.txt')
-    accuracy_cal()
+    dict_trans()
+    train_test_trans('data/word_dict.txt','data/train_dssm.txt')
+    # accuracy_cal()

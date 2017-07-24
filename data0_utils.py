@@ -9,6 +9,7 @@ __author__ = 'Liang Pang'
 import sys
 import random
 import numpy as np
+import math
 
 import json
 config = json.loads( open(sys.argv[1]).read() )
@@ -24,6 +25,7 @@ embed_dict = pt.io.base.read_embedding(filename=Letor07Path + '/10003emb.npy')
 
 feat_size = 0
 
+'''
 _PAD_ = len(word_dict)
 embed_dict[_PAD_] = np.zeros((config['embed_size'], ), dtype=np.float32)
 word_dict[_PAD_] = '[PAD]'
@@ -31,6 +33,14 @@ iword_dict['[PAD]'] = _PAD_
 
 _UNK_ = len(word_dict)
 embed_dict[_UNK_] = np.zeros((config['embed_size'], ), dtype=np.float32)
+word_dict[_UNK_] = '[UNK]'
+iword_dict['[UNK]'] = _UNK_
+'''
+_PAD_ = 0
+word_dict[_PAD_] = '[PAD]'
+iword_dict['[PAD]'] = _PAD_
+
+_UNK_ = 10001
 word_dict[_UNK_] = '[UNK]'
 iword_dict['[UNK]'] = _UNK_
 
@@ -43,6 +53,9 @@ class PairGenerator():
         # rel is a list of ((int)label, query_id, doc_id) tuple
         # self.pair_list = self.make_pair(self.rel)
         self.config = config
+
+    def get_rel_len(self):
+        return float(len(self.rel))
     #
     # def make_pair(self, rel):
     #     rel_set = {}
@@ -91,7 +104,7 @@ class PairGenerator():
     #
     #     return X1, X1_len, X2, X2_len, Y, F
 
-    def new_get_batch(self, data1, data2):
+    def new_get_batch(self, index, data1, data2):
         config = self.config
         X1 = np.zeros((config['batch_size'], config['data1_maxlen']), dtype=np.int32)
         X1_len = np.zeros((config['batch_size'],), dtype=np.int32)
@@ -101,8 +114,16 @@ class PairGenerator():
         F = np.zeros((config['batch_size'], feat_size), dtype=np.float32)
         X1[:] = config['fill_word']
         X2[:] = config['fill_word']
+
+        b = config['batch_size'] * index
+        e = min(len(self.rel), config['batch_size'] * (index+1))
+        batch_list = self.rel[b:e]
+        while len(batch_list) < config['batch_size']:
+            p = random.randint(0, len(self.rel) - 1)
+            batch_list.append(self.rel[p])
+
         for i in range(config['batch_size']):
-            label, d1, d2 = random.choice(self.rel)
+            label, d1, d2 = batch_list[i]
             d1_len = min(config['data1_maxlen'], len(data1[d1]))
             d2_len = min(config['data2_maxlen'], len(data2[d2]))
             X1[i, :d1_len], X1_len[i] = data1[d1][:d1_len], d1_len

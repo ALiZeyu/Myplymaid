@@ -10,6 +10,8 @@ import sys
 
 import tensorflow as tf
 import numpy as np
+from tensorflow.contrib import rnn as rnn_cell
+from tensorflow.contrib.rnn.python.ops import rnn
 
 """
 Model Class
@@ -36,9 +38,32 @@ class Model():
         self.embed2 = tf.nn.embedding_lookup(self.embedding, self.X2)
         # print 'embedding'
         # print self.embed1.get_shape()
+        '''        
+        bi_outputs1, state_fw, state_bw = rnn.stack_bidirectional_dynamic_rnn(
+            cells_fw=[rnn_cell.GRUCell(config['embed_size'])],
+            cells_bw=[rnn_cell.GRUCell(config['embed_size'])],
+            inputs=self.embed1,
+            dtype=tf.float32,
+            sequence_length=self.X1_len)
+
+        bi_outputs2, state_fw, state_bw = rnn.stack_bidirectional_dynamic_rnn(
+            cells_fw=[rnn_cell.GRUCell(config['embed_size'])],
+            cells_bw=[rnn_cell.GRUCell(config['embed_size'])],
+            inputs=self.embed2,
+            dtype=tf.float32,
+            sequence_length=self.X2_len)
         
+        bi_outputs1 = self.bi_rnn_encode(config['embed_size'], self.embed1, self.X1_len)
+        bi_outputs2 = self.bi_rnn_encode(config['embed_size'], self.embed2, self.X2_len)
+
+        '''
+        #with tf.variable_scope("QEncoder",initializer=tf.uniform_unit_scaling_initializer(1.0), reuse=False) as Qencoder:
+        bi_outputs1 = self.bi_rnn_encode(config['embed_size'], self.embed1, self.X1_len, '0')
+        #with tf.variable_scope("DEncoder",initializer=tf.uniform_unit_scaling_initializer(1.0), reuse=False) as Dencoder:
+        bi_outputs2 = self.bi_rnn_encode(config['embed_size'], self.embed2, self.X2_len, '1')
+        # self.cross = tf.einsum('abd,acd->abc', self.embed1, self.embed2)
+        self.cross = tf.einsum('abd,acd->abc', bi_outputs1, bi_outputs2)
         # batch_size * X1_maxlen * X2_maxlen
-        self.cross = tf.einsum('abd,acd->abc', self.embed1, self.embed2)
         # print self.cross.get_shape()
         self.cross_img = tf.expand_dims(self.cross, 3)
         # print self.cross_img.get_shape()
@@ -79,6 +104,8 @@ class Model():
         # p_pred = tf.Print(self.pred,[self.pred, tf.shape(self.pred)])
         # p_Y = tf.Print(self.Y,[self.Y, tf.shape(self.Y)])
         self.loss = -tf.reduce_sum(self.Y * tf.log(self.prob))
+        correct_prediction = tf.equal(tf.argmax(self.prob, 1), tf.argmax(self.Y, 1))
+        self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
         self.train_model = tf.train.AdamOptimizer().minimize(self.loss)
     
@@ -98,14 +125,44 @@ class Model():
             index.append(dpool_index_(i, len1[i], len2[i], max_len1, max_len2))
         return np.array(index)
 
+    '''
+    def bi_rnn_encode(self, hidden_size, emb, X_len):
+        #with tf.variable_scope("Encoder", reuse=True):
+            #with tf.variable_scope('forward', reuse=True):
+        self.GRU_fw_cell = rnn_cell.GRUCell(hidden_size)
+            #with tf.variable_scope('backward', reuse=True):
+        self.GRU_bw_cell = rnn_cell.GRUCell(hidden_size)
+        out, fw_state, bw_state = rnn.stack_bidirectional_dynamic_rnn(
+        cells_fw=[self.GRU_fw_cell],
+        cells_bw=[self.GRU_bw_cell],
+        inputs=emb,
+        dtype=tf.float32,
+        sequence_length=X_len)
+        return out
+    '''
+    def bi_rnn_encode(self, hidden_size, emb, X_len, scope_num):
+        with tf.variable_scope("Encoder"+scope_num):
+            #with tf.variable_scope('forward', reuse=True):
+            self.GRU_fw_cell = rnn_cell.GRUCell(hidden_size)
+                #with tf.variable_scope('backward', reuse=True):
+            self.GRU_bw_cell = rnn_cell.GRUCell(hidden_size)
+            out, fw_state, bw_state = rnn.stack_bidirectional_dynamic_rnn(
+            cells_fw=[self.GRU_fw_cell],
+            cells_bw=[self.GRU_bw_cell],
+            inputs=emb,
+            dtype=tf.float32,
+            sequence_length=X_len)
+            return out
+
     def init_step(self, sess):
         sess.run(tf.global_variables_initializer())
 
     def train_step(self, sess, feed_dict):
         feed_dict[self.dpool_index] = self.dynamic_pooling_index(feed_dict[self.X1_len], feed_dict[self.X2_len], 
                                             self.config['data1_maxlen'], self.config['data2_maxlen'])
-        _, loss = sess.run([self.train_model, self.loss], feed_dict=feed_dict) 
-        return loss
+        # _, loss = sess.run([self.train_model, self.loss], feed_dict=feed_dict)
+        _, accuracy = sess.run([self.train_model, self.accuracy], feed_dict=feed_dict)
+        return accuracy
 
     def test_step(self, sess, feed_dict):
         feed_dict[self.dpool_index] = self.dynamic_pooling_index(feed_dict[self.X1_len], feed_dict[self.X2_len], 
